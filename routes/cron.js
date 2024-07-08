@@ -17,6 +17,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+let scheduledTask = null; // Variable para mantener referencia al cron programado
+
 router.post("/schedule", authenticateToken, (req, res) => {
   const { cronTime } = req.body;
 
@@ -24,14 +26,20 @@ router.post("/schedule", authenticateToken, (req, res) => {
     return res.status(400).send("Invalid cron format");
   }
 
-  // console.log({ cronTime });
+  // Detener el cron actual si está programado
+  if (scheduledTask) {
+    scheduledTask.destroy();
+    console.log("Cron task stopped.");
+  }
 
-  cron.schedule(cronTime, async () => {
+  // Configurar el nuevo cronTime y la tarea cron
+  scheduledTask = cron.schedule(cronTime, async () => {
     try {
       const response = await axios.get(
         "https://mentemillonaria.vip/upload/process_zip.php"
       );
       console.log(`Task executed: ${response}`);
+
       // Configuración del correo electrónico
       const mailOptions = {
         from: process.env.EMAIL_USER, // Dirección de correo del remitente
