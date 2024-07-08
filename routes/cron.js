@@ -18,6 +18,7 @@ const transporter = nodemailer.createTransport({
 });
 
 let scheduledTask = null; // Variable para mantener referencia al cron programado
+let cronJobInstance = null; // Variable para mantener referencia al CronJob
 
 router.post("/schedule", authenticateToken, (req, res) => {
   const { cronTime } = req.body;
@@ -27,13 +28,13 @@ router.post("/schedule", authenticateToken, (req, res) => {
   }
 
   // Detener el cron actual si está programado
-  if (scheduledTask) {
-    scheduledTask.destroy();
+  if (cronJobInstance) {
+    cronJobInstance.stop();
     console.log("Cron task stopped.");
   }
 
   // Configurar el nuevo cronTime y la tarea cron
-  scheduledTask = cron.schedule(cronTime, async () => {
+  cronJobInstance = cron.schedule(cronTime, async () => {
     try {
       const response = await axios.get(
         "https://mentemillonaria.vip/upload/process_zip.php"
