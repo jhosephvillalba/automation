@@ -1,0 +1,58 @@
+const express = require("express");
+const router = express.Router();
+const cron = require("node-cron");
+const authenticateToken = require("../middlewares/auth");
+const nodemailer = require("nodemailer");
+const axios = require("axios");
+
+// Configuración del transporte de correo
+const transporter = nodemailer.createTransport({
+  service: "Gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.APP_PASSWORD,
+  },
+});
+
+router.post("/schedule", authenticateToken, (req, res) => {
+  const { cronTime } = req.body;
+
+  if (!cron.validate(cronTime)) {
+    return res.status(400).send("Invalid cron format");
+  }
+
+  // console.log({ cronTime });
+
+  cron.schedule(cronTime, async () => {
+    try {
+      const response = await axios.get(
+        "https://mentemillonaria.vip/upload/process_zip.php"
+      );
+      console.log(`Task executed: ${response}`);
+      // Configuración del correo electrónico
+      const mailOptions = {
+        from: process.env.EMAIL_USER, // Dirección de correo del remitente
+        to: process.env.MY_EMAIL, // Dirección de correo del destinatario
+        subject: "Tarea Cron Ejecutada",
+        text: `La tarea programada se ejecutó correctamente. Respuesta: ${response.data}`,
+      };
+
+      // Enviar el correo electrónico
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          return console.log(`Error sending email: ${error}`);
+        }
+        console.log("Email sent: " + info.response);
+      });
+    } catch (error) {
+      console.error(`Error executing task: ${error}`);
+    }
+  });
+
+  res.send("Task scheduled");
+});
+
+module.exports = router;
