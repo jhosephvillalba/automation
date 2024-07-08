@@ -33,12 +33,17 @@ router.post("/schedule", authenticateToken, (req, res) => {
     console.log("Cron task stopped.");
   }
 
+  const token = Buffer.from(`${process.env.USERNAME}:${process.env.PASSWORDSERVER}`, 'utf8').toString('base64');
+
   // Configurar el nuevo cronTime y la tarea cron
   cronJobInstance = cron.schedule(cronTime, async () => {
     try {
       const response = await axios.get(
-        "https://mentemillonaria.vip/upload/process_zip.php"
-      );
+        "https://grupozambrano.com/upload/process_zip.php", {
+  headers: {
+    'Authorization': `Basic ${token}`
+  }
+   });
       console.log(`Task executed: ${response}`);
 
       // Configuración del correo electrónico
