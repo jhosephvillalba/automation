@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const cron = require("node-cron");
+const schedule = require("node-schedule");
 const authenticateToken = require("../middlewares/auth");
 const nodemailer = require("nodemailer");
 const axios = require("axios");
@@ -18,39 +18,51 @@ const transporter = nodemailer.createTransport({
 });
 
 let scheduledTask = null; // Variable para mantener referencia al cron programado
-let cronJobInstance = null; // Variable para mantener referencia al CronJob
 
 router.post("/schedule", authenticateToken, (req, res) => {
   const { cronTime } = req.body;
 
-  if (!cron.validate(cronTime)) {
+  // Validar formato cronTime
+  const cronParts = cronTime.split(" ");
+  if (cronParts.length !== 5) {
     return res.status(400).send("Invalid cron format");
   }
 
-  // Detener el cron actual si está programado
-  if (cronJobInstance) {
-    cronJobInstance.stop();
-    console.log("Cron task stopped.");
+  // Detener la tarea programada actual si existe
+  if (scheduledTask) {
+    scheduledTask.cancel();
+    console.log("Scheduled task stopped.");
   }
 
   const token = Buffer.from(`${process.env.USERNAME}:${process.env.PASSWORDSERVER}`, 'utf8').toString('base64');
 
-  // Configurar el nuevo cronTime y la tarea cron
-  cronJobInstance = cron.schedule(cronTime, async () => {
+  // Convertir cronTime a una regla de programación para node-schedule
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = cronTime.split(" ");
+  const scheduleRule = new schedule.RecurrenceRule();
+  scheduleRule.tz = "Etc/UTC"; // Configurar zona horaria en UTC
+  scheduleRule.minute = parseInt(minute);
+  scheduleRule.hour = parseInt(hour);
+  scheduleRule.date = dayOfMonth !== "*" ? parseInt(dayOfMonth, 10) : null;
+  scheduleRule.month = month !== "*" ? parseInt(month, 10) - 1 : null; // Mes en node-schedule es 0-11
+  scheduleRule.dayOfWeek = dayOfWeek !== "*" ? parseInt(dayOfWeek, 10) : null;
+
+  // Programar la nueva tarea
+  scheduledTask = schedule.scheduleJob(scheduleRule, async () => {
     try {
       const response = await axios.get(
         "https://grupozambrano.com/upload/process_zip.php", {
-  headers: {
-    'Authorization': `Basic ${token}`
-  }
-   });
-      console.log(`Task executed: ${response}`);
+          headers: {
+            'Authorization': `Basic ${token}`
+          }
+        }
+      );
+      console.log(`Task executed: ${response.data}`);
 
       // Configuración del correo electrónico
       const mailOptions = {
         from: process.env.EMAIL_USER, // Dirección de correo del remitente
         to: process.env.MY_EMAIL, // Dirección de correo del destinatario
-        subject: "Tarea Cron Ejecutada",
+        subject: "Tarea Programada Ejecutada",
         text: `La tarea programada se ejecutó correctamente. Respuesta: ${response.data}`,
       };
 
