@@ -22,41 +22,48 @@ let scheduledTask = null; // Variable para mantener referencia al cron programad
 router.post("/schedule", authenticateToken, (req, res) => {
   const { cronTime } = req.body;
 
+  // Validar el formato de cronTime
   if (!cron.validate(cronTime)) {
     return res.status(400).send("Invalid cron format");
   }
 
-  // Detener el cron actual si está programado
+  // Detener la tarea programada actual si existe
   if (scheduledTask) {
-    scheduledTask.destroy();
-    console.log("Cron task stopped.");
+    scheduledTask.stop();
+    console.log("Scheduled task stopped.");
   }
 
-  // Configurar el nuevo cronTime y la tarea cron
+  const token = Buffer.from(`${process.env.USERNAME}:${process.env.PASSWORDSERVER}`, 'utf8').toString('base64');
+
+  // Programar la nueva tarea usando node-cron
   scheduledTask = cron.schedule(cronTime, async () => {
     try {
       const response = await axios.get(
-        "https://grupozambrano.com/upload/process_zip.php"
+        "https://grupozambrano.com/upload/process_zip.php", {
+          headers: {
+            'Authorization': `Basic ${token}`
+          }
+        }
       );
-      console.log(Task executed: ${response});
+      console.log(`Task executed: ${response.data}`);
 
       // Configuración del correo electrónico
       const mailOptions = {
         from: process.env.EMAIL_USER, // Dirección de correo del remitente
         to: process.env.MY_EMAIL, // Dirección de correo del destinatario
-        subject: "Tarea Cron Ejecutada",
-        text: La tarea programada se ejecutó correctamente. Respuesta: ${response.data},
+        subject: "Tarea Programada Ejecutada",
+        text: `La tarea programada se ejecutó correctamente. Respuesta: ${response.data}`,
       };
 
       // Enviar el correo electrónico
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-          return console.log(Error sending email: ${error});
+          return console.log(`Error sending email: ${error}`);
         }
         console.log("Email sent: " + info.response);
       });
     } catch (error) {
-      console.error(Error executing task: ${error});
+      console.error(`Error executing task: ${error}`);
     }
   });
 
