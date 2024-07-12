@@ -38,20 +38,21 @@ router.post("/schedule", authenticateToken, (req, res) => {
   // Programar la nueva tarea usando node-cron
   scheduledTask = cron.schedule(cronTime, async () => {
     try {
-      const response = await axios.get(
-        "https://grupozambrano.com/upload/process_zip.php", {
-          headers: {
-            'Authorization': `Basic ${token}`
-          }
-        }
-      );
+
+//      const response = await axios.get(
+//        "https://grupozambrano.com/upload/process_zip.php", {
+//          headers: {
+//            'Authorization': `Basic ${token}`
+//          }
+//        }
+//      );
       console.log(`Task executed: ${response.data}`);
 
       // Configuración del correo electrónico
       const mailOptions = {
         from: process.env.EMAIL_USER, // Dirección de correo del remitente
         to: process.env.MY_EMAIL, // Dirección de correo del destinatario
-        subject: "Tarea Programada Ejecutada",
+        subject: "Tarea Programada Ejecutada - (server)",
         text: `La tarea programada se ejecutó correctamente. Respuesta: ${response.data}`,
       };
 
