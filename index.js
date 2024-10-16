@@ -17,10 +17,7 @@ app.use(morgan("tiny"));
 // Middleware para parsear JSON
 app.use(express.json());
 
-app.get("/", (req, res) => { 
-	res.send("Hello word!"); 
-}); 
-
+// Rutas
 app.use("/auth", authRouter);
 app.use("/cron", cronRouter);
 
